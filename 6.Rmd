@@ -1,5 +1,5 @@
 ---data= read.table("C:\Users\shali\Desktop\IST 5535\credit-g.csv")
-title: "homework_6"
+
 author: "Shalini Rallapalli Venkata"
 date: "March 2, 2019"
 output: html_document
