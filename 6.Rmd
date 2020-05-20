@@ -1,0 +1,293 @@
+---data= read.table("C:\Users\shali\Desktop\IST 5535\credit-g.csv")
+title: "homework_6"
+author: "Shalini Rallapalli Venkata"
+date: "March 2, 2019"
+output: html_document
+---
+                                            HOMEWORK 6
+1.	Read in the dataset and explore it. How many customers in the dataset have good credit?
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+data= read.csv("C:/Users/shali/Desktop/IST 5535/credit-g.csv", header=TRUE)
+summary(data)
+table(data$class)
+#We can see that the frequency of duration for loan is highest between 10 to 15 i.e: 250
+hist(data$duration, breaks=20, xlab="duration", ylab="frequency")
+
+#We can see that the highest age group applying for loan in the dataset is between 26-28 years.
+hist(data$age, breaks=20, xlab="age", ylab="frequency")
+#We can see that the good credit for the applicants is highest for applicants with credit history 'critical/other existing credit' and 'existing paid' criteria.
+plot(class~credit_history, data=data, col="red", main='Boxplot1')
+#We can see that the male applicants have more good credit that female applicants.
+plot(class~personal_status, data=data, col='blue', main='Boxplot2')
+
+#When we compare the numbers associated with the categories we can see that the purpose of the loan applicants is majorily for radio/tv(1) followed by the purchase of new car. The least purpose of the applicants is for domestic appliances.
+df1<- data$purpose
+library(plyr)
+#Renaming the categories to numbers so to easily respresent the values on the bar graph.
+df2<-revalue(df1, c("radio/tv"= '1',"furniture/equipment" = '2', "'new car'" = '3' , 
+               "education" = 4, "'used car'"= '5', "business" = '6', "repairs"= '7',
+               "other"= '8', "retraining"='9' , "'domestic appliance'"= '10'))
+plot(df2, xlab='purpose')
+
+#Visualising the loan applicants employment status
+#From the graph we can see that the highest applicants are with an employment between 1 to 4 years.
+plot(data$employment, xlab="Employment")
+#Highest checking is for the 'no checking' c4iteria
+plot(data$checking_status, xlab="checking status")
+#Highest job level of the applicants is skilled
+plot(data$job, xlab="job")
+
+#The above predictors seem to have an impact on the class of the applicant, plotting the scatterplot between the class and the criterias.
+pairs(~class+credit_history+age+duration+personal_status+purpose+employment, data=data, col=data$class)
+
+
+```
+
+A) We can see that the sumamry of the data set hows class ariable having 700 as good and 300 as bad. Thus we can conclude that 700 customers in the dataset have good credit.
+
+
+Q2.	Draw a barchart of 'credit_history' grouped by 'class'. The barchart should satisfy below criteria:
+- The number of customers under each credit history category should be groupled by class
+- Has a main title "Distribution of Credit History Grouped by Class"
+- Has x axis labeled as "Credit History"
+- Has y axis labeled as "Number of Customers"
+```{r}
+#a)
+vals <- table(data$class, data$credit_history)
+barplot(vals, main="Distribution of Credit History Grouped by Class",
+  xlab="Credit History", ylab="Number of Customers", col=c("blue","red"),
+  legend = rownames(vals), beside=TRUE)
+```
+
+A) From the above plot we can see that the 'existing paid' class has the highest number of customers since they have good credit and lowest number of customers with with good credit is in 'no credits' class. The highest bad credit customers are also of the class 'existing paid' and lowest bad credit customers are in 'delayed previously' class.
+
+
+Q3.Draw a boxplot of 'credit_amount' grouped by 'class'. Explain what insights you can get from the plot regarding predicting customer credit class.
+```{r}
+plot(credit_amount~class, data=data, col="pink" , main='Box plot to predict customer credit class')
+```
+
+A) From the boxplot above we can say that applicants with higher credit amount have bad credit.
+
+Q4.Randomly split the whole dataset as two parts: training set containing 80% of the data, and test set containing 20% of the data.
+```{r}
+index<- 1:nrow(data)
+set.seed(123)
+train_index<- sample(index, round(length(index)*0.8))
+train_dataset<- data[train_index,]
+test_dataset<- data[-train_index,]
+nrow(train_dataset)
+```
+
+A) We can see that since the size of the data set is 1000 80% of the data set used for training data should be 800 as above.
+
+Q5.Conduct a logistic regression to predict bad credit customers in the training set. Treat "bad" as the positive class and "good" as negative class. That is, the following model specification is used:
+logit(class=^' bad^'???X)=??_0+??_1 X_1+??_2 X_2+???+??_p X_p
+a) Explain variables that have significant positive or negative effects. Do these directions of these effects make sense? Are the logistic regression results consistent with your findings in steps 2 and 3?
+```{r}
+#We can see that credit history, duration, employment,credit amount, personal status and checking status, installment commitment, have statistical significance on outcome being good/bad credit
+logit_all<-logit_fact<-glm(class~credit_history+purpose+checking_status+savings_status+
+            employment+personal_status+other_parties+
+              property_magnitude+other_payment_plans+
+            housing+own_telephone+foreign_worker+job+installment_commitment+
+              residence_since+age+existing_credits+credit_amount+duration+
+                  num_dependents, family=binomial, data=train_dataset)
+summary(logit_all)
+
+#Now let us consider the predictors that were used during visualization
+#We can see that credit history, duration, employment, personal status and checking status have statistical significance on outcome being good/bad credit.
+logit1<-glm(class~credit_history+age+duration+checking_status+employment
+            +purpose+personal_status, family=binomial, data=train_dataset)
+summary(logit1)
+
+#Comparing the models
+stargazer(logit1, logit_all, type = "text",star.cutoffs = c(0.05, 0.01, 0.001), title="Logistic Regression", digits=4)
+
+#We can see that McFadden psuedo R square is 27%
+library(pscl) 
+pR2(logit_all)
+
+
+logit.probs <- predict(logit_all,type="response")
+#Since the positive class is 'bad' 
+logit.pred <- ifelse(logit.probs >.5, "bad", "good")
+table(logit.pred, train_dataset$class)
+mean(logit.pred == train_dataset$class)
+#We can see that the accuracy of the model is 20.37%
+
+
+library(caret)
+#install.packages('e1071', dependencies=TRUE)
+#-------------------Confusion matrix when positive class is bad.
+# The sensitivity of the model with positive=bad is 0.441 and the specificity is 0.10.
+#i.e: the actual positives correctly identified that is the positives being 'bad' correctly identified is 105/133+105= 44.1% and the actual negatives correctly identified that is the negative class 'good' is 10.3%
+confusionMatrix(factor(logit.pred),train_dataset$class, positive = "bad")
+
+
+```
+
+A) The sensitivity of the model with positive=bad is 0.441 and the specificity is 0.103.
+i.e: the actual positives correctly identified that is the positives being 'bad' correctly identified is 105/133+105= 44.1% and the actual negatives correctly identified that is the negative class 'good' is 10.3%
+
+b) Evaluate the performance of the logistic regression in the test set. Calculate overall accuracy, sensitivity, and specificity. Which measure is best to evaluate how the model predicts bad credit customers? Does this logistic regression model do a good job in classifying bad credit customers?
+```{r}
+logit_all_test<-logit_fact<-glm(class~credit_history+purpose+checking_status+
+                              savings_status+ employment+personal_status+other_parties+
+                              property_magnitude+other_payment_plans+
+                              housing+own_telephone+foreign_worker+job+
+                              installment_commitment+
+                              residence_since+age+existing_credits+
+                              credit_amount+duration+
+                  num_dependents, family=binomial, data=test_dataset)
+summary(logit_all_test)
+#We can see that McFadden psuedo R square is 39.7%
+library(pscl) 
+pR2(logit_all_test)
+
+
+#--------For test data:predictions
+#We can see that the accuracy of the model is 20%
+logit.probs_test <- predict(logit_all_test,type="response")
+logit.pred_test <- ifelse(logit.probs_test >.5, "bad", "good")
+table(logit.pred_test, test_dataset$class)
+mean(logit.pred_test == test_dataset$class)
+
+
+library(caret)
+#install.packages('e1071', dependencies=TRUE)
+#-------------------Confusion matrix when positive class is bad.
+confusionMatrix(factor(logit.pred_test),test_dataset$class, positive = "bad")
+
+```
+
+A) The accuracy of the model using test data is 20%. The sensitivity is 0.387 and specificity is 0.115. The model predicts actual positives i.e: the positives being 'bad' as 24 of total(38+24) = 24/38+24. The model predicts the actual negatives i.e: the negative class being 'good' as 16/(122+16) = 11.5%.
+The measure best to evaluate how the model predicts bad credit customers when the bad customers are of positive class is sensitivity.
+The sensitivity of the model in predicting the actual positives i.e: 'bad' for training data set is 44.1% and for the test data set is 38.7%. Thus the true positives that is correctly predicting the bad credit customers for the test data set has decreased. Thus we can conclude that the logistic model does not do a good job in classifying bad credit customers.
+
+
+Q6.Perform LDA on the training data in order to predict class using only the variables that are found significantly impacting the credit class in the logistic regression analysis (include the whole categorical variable even some levels are not significant in logistic regression). Calculate overall accuracy, sensitivity, and specificity. Does the model do a good job in classifying bad credit customers?
+```{r}
+library(MASS)
+lda.fit<-lda(class~credit_history+purpose+checking_status+
+                              savings_status+ employment+personal_status+other_parties+
+                              property_magnitude+other_payment_plans+
+                              housing+own_telephone+foreign_worker+job+
+                              installment_commitment+
+                              residence_since+age+existing_credits+
+                              credit_amount+duration+num_dependents, data=train_dataset)
+lda.fit
+plot(lda.fit)
+lda.pred<-predict(lda.fit)
+names(lda.pred)
+#We can see that the bad customer with positive class has sensitivity 135/135+103 = 0.567.
+#Thus the model was able rightly predict the actual positives i.e: bad customers of 135 of the total.
+confusionMatrix(lda.pred$class, train_dataset$class, positive = "bad")
+table(lda.pred$class, train_dataset$class)
+#Accuracy is 79%
+mean(lda.pred$class == train_dataset$class)
+
+
+
+#Let us consider a threshold of >0.6 and check for the sensitivity of the model. It reduces the false negatives)
+
+lda.pred0.2 <- ifelse(lda.pred$posterior[,2]>0.2 , "bad", "good")
+mean(factor(lda.pred0.2)== train_dataset$class)
+confusionMatrix(factor(lda.pred0.2), train_dataset$class, positive="bad")
+  #We can see that with increase in threshold to >0.2 the sensitivity of the model increases to 0.84 but the specificity decreaes. 
+lda.class=predict(lda.fit,test_dataset)$class
+
+#---------For test data :predictions
+#Accuracy for test data set is 73%
+mean(lda.class == test_dataset$class)
+confusionMatrix(lda.class, test_dataset$class, positive = "bad")
+
+#Let us consider duration, credit_amount, to draw the decision boundary as they are statistically significant
+y <- train_dataset[c( "duration", "credit_amount", "class")]
+lda.fit2<-lda(class~duration+credit_amount, data=y)
+decisionplot(lda.fit2, y, class = "class", main = "LDA")
+
+
+```
+
+
+A) The models accuracy is 79%. Sensitivity is 56.7% and specificity is 88.4%. The model predicts the actual positives i.e: bad as 135 to the total. i.e: 135/135+103. The sensitivity of the above model predicting the true positives can be increased by increasing the threshold value but the specificity would decrease. The model only predicts 135 out of 238 customers bad credit customers thus making the classying by the model not that good.
+For test data set we can see that the accuracy of the model is 73% with decrease in sensitivity from56.7 to 45.16. Thus we can conclude that the model doesn't do a good job in predicting the bad customers.
+
+Q7.Perform QDA on the training data in order to predict class using only the variables that are found significantly impacting the credit class in the logistic regression analysis (include the whole categorical variable even some levels are not significant in logistic regression). Calculate overall accuracy, sensitivity, and specificity. Does the model do a good job in classifying bad credit customers?
+```{r}
+qda.fit<-qda(class~credit_history+purpose+checking_status+
+                              savings_status+ employment+personal_status+other_parties+
+                              property_magnitude+other_payment_plans+
+                              housing+own_telephone+foreign_worker+job+
+                              installment_commitment+
+                              residence_since+age+existing_credits+
+                              credit_amount+duration+num_dependents, data=train_dataset)
+qda.fit
+
+qda.train=predict(qda.fit,train_dataset)$class
+mean(qda.train == train_dataset$class)
+confusionMatrix(qda.train, train_dataset$class, positive = "bad")
+
+#for test dataset: predictions
+qda.test=predict(qda.fit,test_dataset)$class
+mean(qda.test == test_dataset$class)
+confusionMatrix(qda.test, test_dataset$class, positive = "bad")
+
+```
+
+```{r}
+x <- train_dataset[c( "duration", "credit_amount", "class")]
+qda.fit2<-qda(class~credit_amount+ duration, data=x)
+
+#---------fucntion decison plot
+decisionplot <- function(model, data, class = NULL, predict_type = "class",
+  resolution = 100, showgrid = TRUE, ...) {
+
+  if(!is.null(class)) cl <- data[,class] else cl <- 1
+  data <- data[,1:2]
+  k <- length(unique(cl))
+
+  plot(data, col = as.integer(cl)+1L, pch = as.integer(cl)+1L, ...)
+
+  # make grid
+  r <- sapply(data, range, na.rm = TRUE)
+  xs <- seq(r[1,1], r[2,1], length.out = resolution)
+  ys <- seq(r[1,2], r[2,2], length.out = resolution)
+  g <- cbind(rep(xs, each=resolution), rep(ys, time = resolution))
+  colnames(g) <- colnames(r)
+  g <- as.data.frame(g)
+
+  ### guess how to get class labels from predict
+  ### (unfortunately not very consistent between models)
+  p <- predict(model, g, type = predict_type)
+  if(is.list(p)) p <- p$class
+  p <- as.factor(p)
+
+  if(showgrid) points(g, col = as.integer(p)+1L, pch = ".")
+
+  z <- matrix(as.integer(p), nrow = resolution, byrow = TRUE)
+  contour(xs, ys, z, add = TRUE, drawlabels = FALSE,
+    lwd = 2, levels = (1:(k-1))+.5)
+
+  invisible(z)
+}
+
+decisionplot(qda.fit2, x, class = "class", main = "QDA")
+```
+
+
+
+A) We can see that tyhe accuracy fall from 83% o 73% from training to test data. The sensitivity of the model also reduces from 81% to 54.8%. Thus, the model does do a fair job in predicting bad customers.
+
+
+
+```{r}
+library("knitr")
+knit2html("C:/Users/shali/Desktop/IST 5535/Homework6.Rmd")
+
+```
+

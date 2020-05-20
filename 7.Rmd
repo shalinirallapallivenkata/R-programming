@@ -1,0 +1,255 @@
+---
+title: "HOMEWORK_7"
+author: "Shalini Rallapalli Venkata"
+date: "March 13, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+data= read.csv("C:/Users/shali/Desktop/IST 5535/UniversalBank.csv")
+str(data)
+
+```
+```{r}
+hist(data$Education, breaks=20, xlab="Education", ylab="frequency")
+#The Age of people accepting personal loan is highest between 30-60 years
+hist(data$Age, prob = TRUE, density = 20,xlab = "Agee", ylim =c(0,0.05))
+lines(density(data$Age), col="red")
+#The Experience of people accepting personal loan is highest between 15-35
+hist(data$Experience, prob = TRUE, density = 20,xlab = "Experience", ylim =c(0,0.05))
+lines(density(data$Experience), col="red")
+#The Income of people accepting personal loan is roughly between 20-80 thousand dollars.
+hist(data$Income, prob = TRUE, density = 20,xlab = "Income", ylim =c(0,0.02))
+lines(density(data$Income), col="red")
+
+#Higher income people tend to have accepeted the personal loan
+plot(Income~as.factor(Personal_Loan), data=data, col="pink" , main='Box plot1')
+#Age didnot have much significance in determining the personal loan acceptance
+plot(Age~as.factor(Personal_Loan), data=data, col="pink" , main='Box plot2')
+#The highest number of people who have not accepted loan in education level is Undergraduation. And highest level of people who have accepted loan in Education level is Advanced/Professional.
+plot(as.factor(Education)~as.factor(Personal_Loan),data=data)
+#We can see that higher family size members tend to accept personal loan.
+plot(Family~as.factor(Personal_Loan),data=data)
+
+
+```
+
+```{r}
+#Removing Zip code and Id variables:
+data1 <- data[,c(2,3,4,6,7,8,9,10,11,12,13,14)]
+str(data1)
+
+library(caret)
+
+#Replacing the Education column with the levels
+Education.new <- as.factor(data1$Education)
+str(Education.new)
+data1$Education<-Education.new
+
+#Creating dummy variables for Education
+dmy<-dummyVars("~.", data=data1)
+data.new<-data.frame(predict(dmy, newdata=data1))
+str(data.new)
+
+
+
+```
+
+
+```{r}
+fitControl <-trainControl(method = "cv",number = 5)
+set.seed(12300)
+logit_fit <-train(factor(Personal_Loan)~., data = data.new,trControl = fitControl,method="glm", family=binomial(link='logit'))
+print(logit_fit)
+```
+```{r}
+confusionMatrix(logit_fit)
+```
+
+
+
+```{r}
+#Implementing k fold cross validation
+k.folds <-function(k){
+  folds <-createFolds(data.new$Personal_Loan, k = k, list = TRUE, returnTrain = TRUE)
+  accuracies <-c()
+  
+  for(i in 1:k) {
+    model <-glm(Personal_Loan~Age+Experience+Income+Family+CCAvg
+    +Education.1+Education.2+Education.3+Mortgage+Securities_Account+CD_Account+Online+CreditCard,
+    data = data.new[folds[[i]],],family=binomial(link='logit'))
+    pred_prob_cv <-predict(object = model, newdata = data.new[-folds[[i]],], type = "response")
+    pred_class_cv <-ifelse(pred_prob_cv>0.5, 1, 0)
+    accuracies <-c(accuracies,
+    confusionMatrix(factor(pred_class_cv),
+    factor(data.new[-folds[[i]], ]$Personal_Loan), positive = "1")$byClass['Balanced Accuracy'])
+    }
+    accuracies
+  }                                                             
+                                                                 
+                                                                 
+                                                                 
+```
+
+```{r}
+set.seed(1230)
+accuracies_cv <-c()
+accuracies_cv <-k.folds(5)
+accuracies_cv
+```
+
+```{r}
+cat('Balanced Accuracy:\n Mean =',mean(accuracies_cv),"; ",'Standard Deviation =',sd(accuracies_cv), ";\n",'95% Confidence Interval = [',mean(accuracies_cv)- sd(accuracies_cv)*1.96, ", ",mean(accuracies_cv)+ sd(accuracies_cv)*1.96,"]")
+```
+
+```{r}
+#LDA
+fitControl <-trainControl(method = "cv",number = 5)
+set.seed(12300)
+lda.fit <-train(factor(Personal_Loan)~., data = data.new,trControl = fitControl,method="lda")
+print(lda.fit)
+```
+```{r}
+confusionMatrix(lda.fit)
+```
+
+
+```{r}
+library(MASS)
+#Implementing k fold cross validation for LDA
+k.folds.lda <-function(k){
+  folds <-createFolds(data.new$Personal_Loan, k = k, list = TRUE, returnTrain = TRUE)
+  accuracies <-c()
+  
+  for(i in 1:k) {
+    model.lda <-lda(Personal_Loan~Age+Experience+Income+Family+CCAvg
+    +Education.1+Education.2+Education.3+Mortgage+Securities_Account+CD_Account+Online+CreditCard,
+    data = data.new[folds[[i]],])
+    pred_class_cv.lda <-predict(object = model.lda, newdata = data.new[-folds[[i]],])
+    pred.lda <- as.data.frame(lapply(pred_class_cv.lda, unlist))
+    pred.lda1<-pred.lda[,c(1)]
+    accuracies <-c(accuracies,
+    confusionMatrix(factor(pred.lda1),
+    factor(data.new[-folds[[i]], ]$Personal_Loan), positive = "1")$byClass['Balanced Accuracy'])
+    }
+    accuracies
+  }                                                              
+                                                               
+                 
+```
+
+```{r}
+set.seed(1230)
+accuracies_cv.lda <-c()
+accuracies_cv.lda <-k.folds.lda(5)
+accuracies_cv.lda
+```
+```{r}
+cat('Balanced Accuracy:\n Mean =',mean(accuracies_cv.lda),"; ",'Standard Deviation =',sd(accuracies_cv.lda), ";\n",'95% Confidence Interval = [',mean(accuracies_cv.lda)- sd(accuracies_cv.lda)*1.96, ", ",mean(accuracies_cv.lda)+ sd(accuracies_cv.lda)*1.96,"]")
+```
+
+```{r}
+
+#QDA
+fitControl <-trainControl(method = "cv",number = 5)
+set.seed(12300)
+data.new <-na.omit(data.new)
+str(data.new)
+#qda.fit <-train(factor(Personal_Loan)~Age+Experience+Income+Family+CCAvg+
+              #  factor(Education.1)+factor(Education.2)+factor(Education.3)+Mortgage+factor(Securities_Account)+
+               # factor(CD_Account)+factor(Online)+factor(CreditCard), 
+                #data = data.new,trControl = fitControl,method="qda")
+#Lets find the correlated columns
+findCorrelation(cor(data.new), cutoff = .50, verbose = FALSE)
+
+#qda after removing correlated columns 3, 6, 1
+qda.fit <-train(factor(Personal_Loan)~Experience+Family+CCAvg+
+              Education.2+Education.3+Mortgage+Securities_Account+
+               CD_Account+Online+CreditCard, data = data.new,trControl = fitControl,method="qda")
+print(qda.fit)
+
+```
+```{r}
+confusionMatrix(qda.fit)
+```
+
+```{r}
+library(MASS)
+#Implementing k fold cross validation for LDA
+k.folds.qda <-function(k){
+  folds <-createFolds(data.new$Personal_Loan, k = k, list = TRUE, returnTrain = TRUE)
+  accuracies <-c()
+  
+  for(i in 1:k) {
+    model.qda <-qda(Personal_Loan~Experience+Family+CCAvg
+    +Education.2+Education.3+Mortgage+Securities_Account+CD_Account+Online+CreditCard,
+    data = data.new[folds[[i]],])
+    pred_class_cv.qda <-predict(object = model.qda, newdata = data.new[-folds[[i]],])
+    pred.qda <- as.data.frame(lapply(pred_class_cv.qda, unlist))
+    pred.qda1<-pred.qda[,c(1)]
+    accuracies <-c(accuracies,
+    confusionMatrix(factor(pred.qda1),
+    factor(data.new[-folds[[i]], ]$Personal_Loan), positive = "1")$byClass['Balanced Accuracy'])
+    }
+    accuracies
+  }        
+
+```
+
+```{r}
+set.seed(1230)
+accuracies_cv.qda <-c()
+accuracies_cv.qda <-k.folds.qda(5)
+accuracies_cv.qda
+
+```
+```{r}
+cat('Balanced Accuracy:\n Mean =',mean(accuracies_cv.qda),"; ",'Standard Deviation =',sd(accuracies_cv.qda), ";\n",'95% Confidence Interval = [',mean(accuracies_cv.qda)- sd(accuracies_cv.qda)*1.96, ", ",mean(accuracies_cv.qda)+ sd(accuracies_cv.qda)*1.96,"]")
+```
+
+```{r}
+resamps <-resamples(list(Logit=logit_fit, LDA=lda.fit, GBM = qda.fit))
+summary(resamps)
+```
+
+For person accepting personal loan, the best model with balanced accuracy is Logistic regression. Sensitivity of logistic regression is 6.4/(6.4+3.2) = 66.67. Sensitivity for lda is 5.7/9.6 = 59.3% and for qda it is 48.9. Thus logistic regression has better sensitivity and balanced accuracy.
+
+```{r}
+#Credit Card acceptance
+fitControl <-trainControl(method = "cv",number = 5)
+set.seed(12300)
+logit_fit.credit <-train(factor(CreditCard)~., data = data.new,trControl = fitControl,method="glm", family=binomial(link='logit'))
+print(logit_fit.credit)
+
+```
+```{r}
+confusionMatrix(logit_fit.credit)
+```
+```{r}
+fitControl <-trainControl(method = "cv",number = 5)
+set.seed(12300)
+lda.fit.credit <-train(factor(CreditCard)~., data = data.new,trControl = fitControl,method="lda")
+print(lda.fit.credit)
+```
+```{r}
+confusionMatrix(lda.fit.credit)
+```
+```{r}
+qda.fit.credit <-train(factor(CreditCard)~Experience+Family+CCAvg+
+              Education.2+Education.3+Mortgage+Securities_Account+
+               CD_Account+Online+Personal_Loan, data = data.new,trControl = fitControl,method="qda")
+print(qda.fit.credit)
+```
+
+```{r}
+confusionMatrix(qda.fit.credit)
+```
+
+```{r}
+resamps1 <-resamples(list(Logit=logit_fit.credit, LDA=lda.fit.credit, GBM = qda.fit.credit))
+summary(resamps1)
+```
+
+For Credit card is the target variable, balanced accuracy is a little higher for Logistic compared to lda and qda and there is not much difference in sensitivity between the three models.
+
+

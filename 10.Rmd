@@ -1,0 +1,107 @@
+---
+title: "gettingstartedwithR"
+author: "Shalini Rallapalli Venkata"
+date: "February 10, 2019"
+output:
+  word_document: default
+  html_document: default
+---
+
+10. This exercise involves the Boston housing data set.
+(a) To begin, load in the Boston data set. The Boston data set is part of the MASS library in R.
+```{r}
+library (MASS)
+```
+Now the data set is contained in the object Boston.
+Boston
+```{r}
+data(Boston)
+str(Boston)
+```
+
+Read about the data set:
+```{r}
+?Boston
+```
+
+
+How many rows are in this data set? How many columns? What do the rows and columns represent? 
+```{r}
+# Rows are 506 and columns are 14
+# Rows:506 represent the Housing Values in Suburbs of Boston and colums:14 are the features.
+```
+
+(b) Make some pairwise scatterplots of the predictors (columns) in this data set. Describe your ???ndings. 
+```{r}
+plot(Boston$age, Boston$crim)
+#Crime rate increases with increase in age of homes
+plot(Boston$nox, Boston$crim)
+#Crime rate increases with increase in nitrogen oxides concentration
+plot(Boston$rm, Boston$crim)
+#With increae in average number of rooms per dwelling the crime rate decreaces
+plot(as.factor(Boston$rad), Boston$crim)
+plot(Boston$dis, Boston$crim)
+#less weighted mean of distances to five Boston employment centres and increased crime rate
+
+```
+
+
+
+
+
+
+(c) Are any of the predictors associated with per capita crime rate? If so, explain the relationship. 
+```{r}
+hist(Boston$crim, breaks=50)
+#We can see the crime rate falls between 0-20
+pairs(Boston[Boston$crim<20,])
+#Relationship between crime rate is scattered with other variables variying by increasing or decreasing. Eg: Crime rate increases with increase in age of homes.
+```
+
+
+(d) Do any of the suburbs of Boston appear to have particularly high crime rates? Tax rates? Pupil-teacher ratios? Comment on the range of each predictor. 
+```{r}
+hist(Boston$crim, breaks=50)
+#most cities have low crime rate and we can see that the frequency of crime rate is between 0-20 per capita crime rate by town.
+hist(Boston$ptratio, breaks=25)
+#The frequency of pupil-teacher ratio by town is highest at 20.
+hist(Boston$tax, breaks=25)
+#The frequency of full-value property-tax rate per \$10,000 is highest between 600 and 700.
+
+```
+
+
+(e) How many of the suburbs in this data set bound the Charles river?
+```{r}
+nrow(Boston[Boston$chas==1,])
+# 35 of suburbs in the data set bound the Charles river
+```
+
+
+(f) What is the median pupil-teacher ratio among the towns in this data set? 
+```{r}
+median(Boston$ptratio)
+#The median pupil-teacher ratio among the towns is 19.05
+```
+
+
+(g) Which suburb of Boston has lowest median value of owneroccupied homes? What are the values of the other predictors for that suburb, and how do those values compare to the overall ranges for those predictors? Comment on your ???ndings. 
+```{r}
+#lowest median value of owneroccupied homes
+minval<-Boston[min(Boston$medv), ]
+row.names(minval)
+#values of the other predictors for that suburb, and how do those values compare to the overall ranges:
+predsub<-(subset(Boston,medv==min(Boston$medv)))
+predsub
+#Overall ranges are highest for age and rad. Minimum for zm, rm and dis.
+```
+
+(h) In this data set, how many of the suburbs average more than seven rooms per dwelling? More than eight rooms per dwelling? Comment on the suburbs that average more than eight rooms per dwelling.
+```{r}
+nrow(Boston[Boston$rm>7,])
+nrow(Boston[Boston$rm>8,])
+sapply(Boston[Boston$rm>8,],mean)
+sapply(Boston[Boston$rm>8,],median)
+#Crime rates, medv and few other values are high age of the house is lower.
+```
+

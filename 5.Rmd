@@ -1,0 +1,148 @@
+---
+title: "Homework5"
+author: "Shalini Rallapalli Venkata"
+date: "February 24, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+10. This question should be answered using the Weekly data set, which is part of the ISLR package. This data is similar in nature to the Smarket data from this chapter's lab, except that it contains 1,089 weekly returns for 21 years, from the beginning of 1990 to the end of 2010.
+(a) Produce some numerical and graphical summaries of the Weekly data. Do there appear to be any patterns? 
+
+```{r}
+library(ISLR)
+data(Weekly)
+summary(Weekly)
+str(Weekly)
+pairs(Weekly)
+cor(Weekly[,-9]) #Considering all numeric variables
+
+plot(Weekly$Volume,Weekly$Year)
+
+```
+A) We can see that there is a correlation between Volume and Year and correlation between lag and today are near to zero
+The plot between year and volume shows us that volume increases over time.
+
+(b) Use the full data set to perform a logistic regression with Direction as the response and the ???ve lag variables plus Volume as predictors. Use the summary function to print the results. Do any of the predictors appear to be statistically signi???cant? If so, which ones?
+```{r}
+logit_fit1<-glm(Direction ~ Lag1 +Lag2+Lag3+Lag4+Lag5+Volume, data = Weekly, family = binomial)
+summary(logit_fit1)
+
+
+```
+Only Lag2 appears to be statistically significant with p value < 0.05
+
+
+
+(c) Compute the confusion matrix and overall fraction of correct predictions. Explain what the confusion matrix is telling you about the types of mistakes made by logistic regression.
+```{r}
+# Calculate probability of default
+logit_probs <- predict(logit_fit1,type="response")
+# Calculate predicted default 
+logit_pred <- ifelse(logit_probs >.5, "Up", "Down")
+# Show confusion matrix 
+table(logit_pred,Weekly$Direction)
+
+mean(logit_pred == Weekly$Direction)
+
+```
+% of correct predictions of training data= (54+557)/(54+48+430+557)= 0.561 is 56.1%.
+Weeks when market goes up and the model gives right predictions is: 557/48+557)= 92.06%. Weeks when market goes down and nd the model gives right predictions is: 54/(54+430) = 11.15%
+
+
+
+(d) Now ???t the logistic regression model using a training data period from 1990 to 2008, with Lag2 as the only predictor. Compute the confusion matrix and the overall fraction of correct predictions for the held out data (that is, the data from 2009 and 2010).
+
+```{r}
+data1<-Weekly$Year %in% (1990:2008)
+data_logit<-Weekly[data1,]
+logit_fit2 <-glm(Direction~Lag2, data=data_logit, family=binomial)
+summary(logit_fit2)
+data_conf<-Weekly[!data1,] #Considering data from 2009 to 2010
+logit_probs1 <- predict(logit_fit2,data_conf,type="response")
+logit_pred1 <- ifelse(logit_probs1 >.5, "Up", "Down")
+table(logit_pred1,data_conf$Direction)
+# Calculate in-sample prediction accuracy
+mean(logit_pred1 == data_conf$Direction)
+```
+
+
+
+(e) Repeat (d) using LDA.
+```{r}
+library(MASS)
+lda_fit <- lda(Direction~Lag2, data=data_logit)
+lda_fit
+lda_pred<- predict(lda_fit, data_conf)
+table(lda_pred$class, data_conf$Direction)
+
+
+```
+
+(f) Repeat (d) using QDA. 
+```{r}
+qda_fit <- qda(Direction~Lag2, data=data_logit)
+qda_fit
+qda_pred<- predict(qda_fit, data_conf)
+table(qda_pred$class, data_conf$Direction)
+mean(qda_pred$class == data_conf$Direction)
+
+```
+
+
+(g) Repeat (d) using KNN with K = 1. 
+```{r}
+library(class)
+data_req <-as.matrix(data_logit$Lag2)
+data_req1 <- as.matrix(data_conf$Lag2)
+data_Direction<- data_logit$Direction
+set.seed(1)
+knn_pred <- knn(data_req, data_req1, data_Direction, k=1)
+table(knn_pred, data_conf$Direction)
+mean(knn_pred== data_conf$Direction)
+
+```
+
+
+(h) Which of these methods appears to provide the best results on this data? (i) Experiment with di???erent combinations of predictors, including possible transformations and interactions, for each of the methods. Report the variables, method, and associated confusion matrix that appears to provide the best results on the held out data. Note that you should also experiment with values for K in the KNN classi???er.
+
+A)Logistic Regression and LDA have less minimum rates thus having the best results.
+
+```{r}
+
+logit_fit3 <-glm(Direction~Lag2:Lag3, data=data_logit, family=binomial)
+summary(logit_fit3)
+logit_probs_new <- predict(logit_fit3,data_conf,type="response")
+logit_pred_new <- ifelse(logit_probs_new >.5, "Up", "Down")
+table(logit_pred_new,data_conf$Direction)
+# Calculate in-sample prediction accuracy
+mean(logit_pred_new == data_conf$Direction)
+
+lda_fit_new <- lda(Direction~Lag2:Lag1, data=data_logit)
+lda_fit_new
+lda_pred_new<- predict(lda_fit_new, data_conf)
+table(lda_pred_new$class, data_conf$Direction)
+mean(lda_pred_new$class == data_conf$Direction)
+
+qda_fit_new <- qda(Direction~Lag2:Lag3, data=data_logit)
+qda_fit_new
+qda_pred_new<- predict(qda_fit_new, data_conf)
+table(qda_pred_new$class, data_conf$Direction)
+mean(qda_pred_new$class == data_conf$Direction)
+
+knn_pred_new1 <- knn(data_req, data_req1, data_Direction, k=10)
+table(knn_pred_new1, data_conf$Direction)
+mean(knn_pred_new1== data_conf$Direction)
+
+
+knn_pred_new2 <- knn(data_req, data_req1, data_Direction, k=50)
+table(knn_pred_new2, data_conf$Direction)
+mean(knn_pred_new2== data_conf$Direction)
+
+
+```
+We can see that out of all the models, logistic and lda have better results. With increase in K vale KNN performs better.
+
+
